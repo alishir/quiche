@@ -1333,6 +1333,11 @@ impl Connection {
 
         conn.handshake.lock().unwrap().init(&conn)?;
 
+        conn.handshake
+            .lock()
+            .unwrap()
+            .use_legacy_codepoint(config.version != PROTOCOL_VERSION_V1);
+
         conn.encode_transport_params()?;
 
         // Derive initial secrets for the client. We can do this here because
@@ -1623,6 +1628,11 @@ impl Connection {
                 Some(aead_open);
             self.pkt_num_spaces[packet::EPOCH_INITIAL].crypto_seal =
                 Some(aead_seal);
+
+            self.handshake
+                .lock()
+                .unwrap()
+                .use_legacy_codepoint(self.version != PROTOCOL_VERSION_V1);
 
             // Encode transport parameters again, as the new version might be
             // using a different format.
@@ -5225,6 +5235,9 @@ mod tests {
         let mut buf = [0; 65535];
 
         let mut config = Config::new(0xbabababa).unwrap();
+        config
+            .set_application_protos(b"\x06proto1\x06proto2")
+            .unwrap();
         config.verify_peer(false);
 
         let mut pipe = testing::Pipe::with_client_config(&mut config).unwrap();
